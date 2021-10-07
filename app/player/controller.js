@@ -28,12 +28,16 @@ module.exports = {
         .populate('category')
         .populate('nominals')
         .populate('user', '_id name phoneNumber')
+      const payments = await Payment.find()
 
       if (!voucher) {
         res.status(404).json({ message: `voucher game tidak ditemukan!` })
       }
 
-      res.status(200).json({ data: voucher })
+      res.status(200).json({
+        detail: voucher,
+        payments: payments,
+      })
     } catch (error) {
       res.status(500).json({ mesage: error.message || `Internal server error` })
     }
