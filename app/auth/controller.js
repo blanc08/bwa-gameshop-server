@@ -1,13 +1,52 @@
 const Player = require('../player/model')
+const path = require('path')
+const fs = require('fs')
 const config = require('../../config')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+
 module.exports = {
   signup: async (req, res, next) => {
     try {
       const payload = req.body
 
       if (req.file) {
+        let tmp_path = req.file.path
+        let originaExt =
+          req.file.originalname.split('.')[
+            req.file.originalname.split('.').length - 1
+          ]
+        let filename = req.file.filename + '.' + originaExt
+        let target_path = path.resolve(
+          config.rootPath,
+          `public/uploads/${filename}`
+        )
+
+        const src = fs.createReadStream(tmp_path)
+        const dest = fs.createWriteStream(target_path)
+
+        src.pipe(dest)
+
+        src.on('end', async () => {
+          try {
+            const player = new Player({ ...payload, avatar: filename })
+
+            await player.save()
+
+            delete player._doc.password
+
+            res.status(201).json({ data: player })
+          } catch (err) {
+            if (err && err.name === 'ValidationError') {
+              return res.status(422).json({
+                error: 1,
+                message: err.message,
+                fields: err.errors,
+              })
+            }
+            next(err)
+          }
+        })
       } else {
         let player = new Player(payload)
 
@@ -18,21 +57,20 @@ module.exports = {
         res.status(201).json({ data: player })
       }
     } catch (err) {
-      if (err && err.name == 'ValidationError') {
+      if (err && err.name === 'ValidationError') {
         return res.status(422).json({
-          err: 1,
+          error: 1,
           message: err.message,
           fields: err.errors,
         })
       }
-
-      return next(err)
+      next(err)
     }
   },
 
   signin: (req, res, next) => {
     const { email, password } = req.body
-    console.log(email)
+
     Player.findOne({ email: email })
       .then((player) => {
         if (player) {
@@ -44,7 +82,7 @@ module.exports = {
                   id: player.id,
                   username: player.username,
                   email: player.email,
-                  name: player.name,
+                  nama: player.nama,
                   phoneNumber: player.phoneNumber,
                   avatar: player.avatar,
                 },
@@ -56,18 +94,22 @@ module.exports = {
               data: { token },
             })
           } else {
-            res.status(403).json({ message: 'Password salah' })
+            res.status(403).json({
+              message: 'password yang anda masukan salah.',
+            })
           }
         } else {
-          res
-            .status(403)
-            .json({ message: 'Email yang anda masukkan belum terdaftar' })
+          res.status(403).json({
+            message: 'email yang anda masukan belum terdaftar.',
+          })
         }
       })
       .catch((err) => {
-        res
-          .status(500)
-          .json({ message: err.message || 'Internal Server error' })
+        res.status(500).json({
+          message: err.message || `Internal server error`,
+        })
+
+        next()
       })
   },
 }
