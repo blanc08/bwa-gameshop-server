@@ -210,7 +210,7 @@ module.exports = {
         email: req.player.email,
         name: req.player.name,
         avatar: req.player.avatar,
-        phone_number: req.player.phoneNumber,
+        phoneNumber: req.player.phoneNumber,
       }
 
       res.status(200).json({ data: player })
